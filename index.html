@@ -673,24 +673,41 @@
     submitBtn.textContent = 'Sending…';
 
     const GOOGLE_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLScrQEHXswza9qNR0d9dV2JJ4uMWjodaob2iHPfRPBCJjDUP5w/formResponse';
-    const body = new URLSearchParams();
-    body.set('entry.340203455', name);
-    body.set('entry.706534602', attending === 'yes' ? "Wouldn't miss it for the world" : "Can't make it");
-    body.set('entry.1763186903', String(guests));
+    const fields = {
+      'entry.340203455': name,
+      'entry.706534602': attending === 'yes' ? "Wouldn't miss it for the world" : "Can't make it",
+      'entry.706534602_sentinel': '',
+      'entry.1763186903': String(guests),
+      'fvv': '1',
+      'pageHistory': '0'
+    };
 
-    fetch(GOOGLE_FORM_URL, { method: 'POST', mode: 'no-cors', body })
-    .then(() => {
+    // Submit through a hidden form + hidden iframe, which Google Forms accepts from any site.
+    let frame = document.getElementById('gform-target');
+    if(!frame){
+      frame = document.createElement('iframe');
+      frame.id = 'gform-target'; frame.name = 'gform-target'; frame.style.display = 'none';
+      document.body.appendChild(frame);
+    }
+    const hidden = document.createElement('form');
+    hidden.method = 'POST'; hidden.action = GOOGLE_FORM_URL; hidden.target = 'gform-target'; hidden.style.display = 'none';
+    Object.keys(fields).forEach(function(k){
+      const i = document.createElement('input'); i.type = 'hidden'; i.name = k; i.value = fields[k]; hidden.appendChild(i);
+    });
+    document.body.appendChild(hidden);
+
+    let done = false;
+    function finish(){
+      if(done) return; done = true;
       form.style.display = 'none';
       confirmBox.style.display = 'block';
       confirmMsg.textContent = attending === 'yes'
         ? ('Wonderful — see you in San Juan Capistrano, ' + name.split(' ')[0] + '.')
         : ("We'll miss you, " + name.split(' ')[0] + ' — thank you for letting us know.');
-    })
-    .catch(() => {
-      submitBtn.disabled = false;
-      submitBtn.textContent = 'Send Reply';
-      alert('Something went wrong sending your reply. Please try again.');
-    });
+    }
+    frame.addEventListener('load', finish, { once: true });
+    setTimeout(finish, 6000);
+    hidden.submit();
   });
 })();
 </script>
